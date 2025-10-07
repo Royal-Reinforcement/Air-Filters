@@ -48,6 +48,18 @@ df_needed['Count'] = None
 
 st.download_button('Download Needed Filters Template', df_needed.to_csv(index=False).encode('utf-8'), file_name='needed_filters_template.csv', mime='text/csv', width='stretch')
 
+st.subheader('Current Month Still To Be Changed')
+weeks = st.multiselect('Weeks', options=df['Week'].astype(int).unique(), default=df['Week'].astype(int).unique().tolist())
+
+df_weeks = df[df['Week'].astype(int).isin(weeks)]
+week_filter_sums = sum(df_weeks['Expanded'], [])
+df_week_counts = pd.Series(week_filter_sums).value_counts().reset_index()
+df_week_counts.columns = ['Size', 'Count']
+df_week_counts = df_week_counts[df_week_counts["Size"].str.match(r'^\d+ X \d+ X \d+$')]
+df_week_counts[["L","W","H"]] = df_week_counts["Size"].str.split(" X ", expand=True).astype(int)
+df_week_counts = df_week_counts.sort_values(by=["L","W"]).reset_index(drop=True)
+df_week_counts = df_week_counts[["Size","Count"]]
+
 st.subheader('Currently In Warehouse')
 uploaded_count = st.file_uploader('Current Warehouse Inventory', type='csv')
 
@@ -57,9 +69,12 @@ if uploaded_count is not None:
     df_uploaded = pd.read_csv(uploaded_count)
     
     df = pd.merge(df_counts, df_uploaded, on='Size', how='left', suffixes=('_In_Homes', '_In_Warehouse'))
+    df = pd.merge(df, df_week_counts, on='Size', how='left')
     df['Count_In_Warehouse'] = df['Count_In_Warehouse'].fillna(0).astype(int)
-    df['Remainder'] = df['Count_In_Warehouse'] - df['Count_In_Homes'].fillna(0)
-    df = df[['Size', 'Count_In_Warehouse', 'Count_In_Homes', 'Remainder']]
+    df['Count'] = df['Count'].fillna(0).astype(int)
+    df['Remainder'] = df['Count_In_Warehouse'] - df['Count_In_Homes'].fillna(0) - df['Count'].fillna(0)
+    df = df[['Size', 'Count_In_Warehouse', 'Count', 'Count_In_Homes', 'Remainder']]
+    df.columns = ['Size', 'In Warehouse', 'Needed This Month', 'Needed Next Month', 'Remainder']
     
     
     df_order = df[df['Remainder'] < 0]
