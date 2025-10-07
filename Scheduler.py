@@ -322,18 +322,10 @@ if escapia_file is not None:
             date1 = week_start.strftime('%m-%d')
             date2 = week_end.strftime('%m-%d-%Y')
 
-            recipients = [
-                st.secrets['recipients']['guest_services'],
-                st.secrets['recipients']['inspectors'],
-                st.secrets['recipients']['liaisons'],
-                st.secrets['recipients']['maintenance']
-
-            ]
-
             email_dataframe_as_csv(
                 df=deliverable,
                 filename=f'AFS_{date1}_{date2}',
-                recipients=recipients,
+                recipients=st.secrets['email']['recipients'],
                 subject=f'Air Filter Schedule | {date1} - {date2}',
                 body='Please see the attached Air Filter Schedule.'
                 )
