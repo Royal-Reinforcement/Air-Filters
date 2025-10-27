@@ -35,8 +35,8 @@ df['Expanded']              = df['Filters'].apply(expand_sizes)
 filter_sums                 = sum(df['Expanded'], [])
 df_counts                   = pd.Series(filter_sums).value_counts().reset_index()
 df_counts.columns           = ['Size', 'Count']
-df_counts                   = df_counts[df_counts["Size"].str.match(r'^\d+ X \d+ X \d+$')]
-df_counts[["L","W","H"]]    = df_counts["Size"].str.split(" X ", expand=True).astype(int)
+df_counts                   = df_counts[df_counts["Size"].str.match(r'^\d+(?:\.\d+)? X \d+(?:\.\d+)? X \d+(?:\.\d+)?$')]
+df_counts[["L","W","H"]]    = df_counts["Size"].str.split(" X ", expand=True)
 df_counts                   = df_counts.sort_values(by=["L","W"]).reset_index(drop=True)
 df_counts                   = df_counts[["Size","Count"]]
 
@@ -55,8 +55,8 @@ df_weeks = df[df['Week'].astype(int).isin(weeks)]
 week_filter_sums = sum(df_weeks['Expanded'], [])
 df_week_counts = pd.Series(week_filter_sums).value_counts().reset_index()
 df_week_counts.columns = ['Size', 'Count']
-df_week_counts = df_week_counts[df_week_counts["Size"].str.match(r'^\d+ X \d+ X \d+$')]
-df_week_counts[["L","W","H"]] = df_week_counts["Size"].str.split(" X ", expand=True).astype(int)
+df_week_counts = df_week_counts[df_week_counts["Size"].str.match(r'^\d+(?:\.\d+)? X \d+(?:\.\d+)? X \d+(?:\.\d+)?$')]
+df_week_counts[["L","W","H"]] = df_week_counts["Size"].str.split(" X ", expand=True)
 df_week_counts = df_week_counts.sort_values(by=["L","W"]).reset_index(drop=True)
 df_week_counts = df_week_counts[["Size","Count"]]
 
@@ -77,7 +77,7 @@ if uploaded_count is not None:
     df.columns = ['Size', 'In Warehouse', 'Needed This Month', 'Needed Next Month', 'Remainder']
     
     
-    df_order = df[df['Remainder'] < 0]
+    df_order = df[df['Remainder'] < 0].copy()
     df_order.rename(columns={'Remainder': 'Filters_Needed'}, inplace=True)
     df_order['Filters_Needed'] = df_order['Filters_Needed'].abs()
     df_order = df_order[['Size', 'Filters_Needed']]
@@ -97,8 +97,13 @@ if uploaded_count is not None:
     for vendor, df_vendor in df_order.groupby('Vendor'):
         f'**{vendor}**'
 
-        df_vendor = df_vendor[['Size','Cases_Needed']]
+        df_vendor = df_vendor[['Size','Cost','Cases_Needed']].copy()
         df_vendor.rename(columns={'Cases_Needed': 'Cases'}, inplace=True)
+        df_vendor['Total_Cost'] = df_vendor['Cost'] * df_vendor['Cases']
 
-        st.dataframe(df_vendor, hide_index=True, width='stretch')
-        st.download_button(f'Download Order for **{vendor}**', df_vendor.to_csv(index=False).encode('utf-8'), file_name=f'order_{vendor.lower().replace(' ','_')}.csv', mime='text/csv', width='stretch', type='primary', key=vendor+'_download')
+        l, r = st.columns(2)
+        l.metric('Total Cases', df_vendor['Cases'].sum())
+        r.metric('Total Cost', f"${df_vendor['Total_Cost'].sum():,.2f}")
+        
+        st.dataframe(df_vendor, hide_index=True, width='stretch')        
+        st.download_button(f'Download Order for **{vendor}**', df_vendor[['Size','Cases']].to_csv(index=False).encode('utf-8'), file_name=f'order_{vendor.lower().replace(' ','_')}.csv', mime='text/csv', width='stretch', type='primary', key=vendor+'_download')

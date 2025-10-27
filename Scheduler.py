@@ -319,8 +319,8 @@ if escapia_file is not None:
 
         
         if st.button('Send Schedule to Email', use_container_width=True, type='primary'):
-            date1 = week_start.strftime('%m-%d')
-            date2 = week_end.strftime('%m-%d-%Y')
+            date1 = start.strftime('%m-%d')
+            date2 = end.strftime('%m-%d-%Y')
 
             email_dataframe_as_csv(
                 df=deliverable,
