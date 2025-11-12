@@ -3,7 +3,7 @@ import pandas as pd
 import smartsheet
 import re
 
-APP_NAME = 'Air Filter Ordering'
+APP_NAME = 'Air Filter Orderings'
 
 
 @st.cache_data(ttl=300)
