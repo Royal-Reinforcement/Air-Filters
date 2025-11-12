@@ -40,13 +40,15 @@ df_counts[["L","W","H"]]    = df_counts["Size"].str.split(" X ", expand=True)
 df_counts                   = df_counts.sort_values(by=["L","W"]).reset_index(drop=True)
 df_counts                   = df_counts[["Size","Count"]]
 
-st.subheader('Currently In Homes')
-st.dataframe(df_counts, hide_index=True, width='stretch')
-
+# st.subheader('Currently In Homes')
 df_needed = df_counts.copy()
 df_needed['Count'] = None
 
-st.download_button('Download Needed Filters Template', df_needed.to_csv(index=False).encode('utf-8'), file_name='needed_filters_template.csv', mime='text/csv', width='stretch')
+key  = st.query_params.get('auth')
+
+if key == st.secrets['auth']['key']:
+    st.download_button('Download Needed Filters Template', df_needed.to_csv(index=False).encode('utf-8'), file_name='needed_filters_template.csv', mime='text/csv', width='stretch')
+
 
 st.subheader('Current Month Still To Be Changed')
 weeks = st.multiselect('Weeks', options=df['Week'].astype(int).unique(), default=df['Week'].astype(int).unique().tolist())
