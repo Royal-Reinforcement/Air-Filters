@@ -264,7 +264,7 @@ current_year    = dt.datetime.now().year
 next_year       = current_year + 1
 report_url      = f"{st.secrets['escapia_1']}{current_year}{st.secrets['escapia_2']}{next_year}{st.secrets['escapia_3']}"
 
-st.link_button('Download the **Housekeeping Report** from **Escapia**', url=report_url, type='secondary', use_container_width=True, help='Housekeeping Arrival Departure Report - Excel 1 line')
+st.link_button('Download the **Housekeeping Report** from **Escapia**', url=report_url, type='secondary', width='stretch', help='Housekeeping Arrival Departure Report - Excel 1 line')
 
 escapia_file = st.file_uploader(label='Housekeeping Arrival Departure Report - Excel 1 line.csv', type='csv')
 
@@ -286,7 +286,7 @@ if escapia_file is not None:
         week_start          = pd.Timestamp(next_range[0])
         week_end            = pd.Timestamp(next_range[1])
 
-        week                = st.selectbox('Schedule Week', options=working_weeks, index=next_week)
+        week                = st.selectbox('Schedule Week', options=working_weeks)
 
         weekly_air_filters  = air_filter_schedule[air_filter_schedule['Week'] == week]['Unit_Code'].tolist()
 
@@ -305,29 +305,49 @@ if escapia_file is not None:
                 columns[count].metric(pd.to_datetime(date).strftime('**%A**\n\n%m/%d/%Y'), assignments[1][date])
                 count = (count + 1) % 5
 
-            deliverable = assignments_dict_to_df(assignments[0])
+
+        with st.expander('Schedule'):
+            
+            deliverable         = assignments_dict_to_df(assignments[0])
             deliverable['date'] = deliverable['date'].dt.strftime('%Y-%m-%d')
             deliverable['day']  = pd.to_datetime(deliverable['date']).dt.strftime('%A')
             deliverable['week'] = week
             deliverable         = deliverable[['week', 'date', 'day', 'unit_code', 'status']]
             deliverable.columns = ['Week', 'Date', 'Day', 'Unit_Code', 'Status']
-            deliverable = pd.merge(deliverable, air_filter_schedule[['Unit_Code','Ladder?','Filters','#']], on='Unit_Code', how='left')
+            deliverable         = pd.merge(deliverable, air_filter_schedule[['Unit_Code','Ladder?','Filters','#']], on='Unit_Code', how='left')
+            deliverable         = deliverable.sort_values(['Date', 'Ladder?']).reset_index(drop=True)
 
-
-        with st.expander('Schedule'):
-            st.dataframe(deliverable, use_container_width=True, hide_index=True)
+            st.dataframe(deliverable, width='stretch', hide_index=True)
 
         
-        if st.button('Send Schedule to Email', use_container_width=True, type='primary'):
-            date1 = start.strftime('%m-%d')
-            date2 = end.strftime('%m-%d-%Y')
+        if st.button('Send Schedule to Email', width='stretch', type='primary'):
+            date1       = start.strftime('%m-%d')
+            date2       = end.strftime('%m-%d-%Y')
+            file_date1  = start.strftime('%Y-%m-%d')
+            file_date2  = end.strftime('%m-%d')
 
             email_dataframe_as_csv(
                 df=deliverable,
-                filename=f'AFS_{date1}_{date2}',
+                filename=f'AFS_{file_date1}_{file_date2}',
                 recipients=st.secrets['email']['recipients'],
                 subject=f'Air Filter Schedule | {date1} - {date2}',
                 body='Please see the attached Air Filter Schedule.'
                 )
             
             st.toast(icon='📧', body='Email sent!')
+
+        
+        with st.expander('Scheduling Assistant'):
+            assistant = deliverable.copy()
+            assistant = assistant[['Date','Day','Unit_Code','Ladder?']]
+            assistant['Unit_Code'] = '(' + assistant['Unit_Code'] + ')'
+            st.dataframe(assistant, hide_index=True)
+
+        st.download_button(
+            label='Download Scheduling Assistant',
+            data=assistant.to_csv(index=False).encode('utf-8'),
+            file_name=f'AFS_{start.strftime('%Y-%m-%d')}_{end.strftime('%m-%d')}.csv',
+            mime='text/csv',
+            width='stretch',
+            type='primary'
+        )
