@@ -123,15 +123,22 @@ def schedule_tasks(result, start, end, subset=None, min_per_day=6, max_per_day=8
     
     # Step 1: Prepare candidate days for each unit
     unit_data = {}
+
     for unit in units:
         if unit not in result:
+            unit_data[unit] = {
+                "hold": True
+            }
             continue
+
         data = result[unit]
         arriving  = [d for d in data.get("arriving", []) if d in selected_dates]
         departing = [d for d in data.get("departing", []) if d in selected_dates]
         vacant    = [d for d in data.get("vacant", []) if d in selected_dates]
         occupied  = [d for d in data.get("occupied", []) if d in selected_dates]
+
         unit_data[unit] = {
+            "hold": False,
             "arriving": set(arriving),
             "departing": set(departing),
             "vacant": set(vacant),
@@ -140,8 +147,14 @@ def schedule_tasks(result, start, end, subset=None, min_per_day=6, max_per_day=8
 
     # Helper to compute status for a unit on a date
     def get_status(unit, date):
-        u = unit_data[unit]
+
+        u   = unit_data[unit]
+
+        if u.get("hold", False):
+            return "HOLD"
+
         b2b = u["arriving"] & u["departing"]
+
         if date in u["vacant"]:
             return "VACANT"
         elif date in b2b:
@@ -156,17 +169,32 @@ def schedule_tasks(result, start, end, subset=None, min_per_day=6, max_per_day=8
             return "VACANT"
 
     # Status priority
-    status_priority = {"VACANT": 1, "B2B": 2, "ARRIVAL": 3, "DEPARTURE": 4, "OCCUPIED": 5}
+    status_priority = {
+    "VACANT": 1,
+    "HOLD": 2,
+    "B2B": 3,
+    "ARRIVAL": 4,
+    "DEPARTURE": 5,
+    "OCCUPIED": 6
+    }
 
     # Step 2: Initial greedy assignment with priority
     load = {d: 0 for d in selected_dates}
     assignments_per_day = {d.strftime("%Y-%m-%d"): [] for d in selected_dates}
 
     for unit in sorted(unit_data.keys(), key=lambda u: len(selected_dates)):
-        candidates = [d for d in selected_dates if d in unit_data[unit]["arriving"] |
-                      unit_data[unit]["departing"] |
-                      unit_data[unit]["vacant"] |
-                      unit_data[unit]["occupied"]]
+        if unit_data[unit].get("hold", False):
+            candidates = list(selected_dates)
+        else:
+            candidates = [
+                d for d in selected_dates
+                if d in (
+                    unit_data[unit]["arriving"]
+                    | unit_data[unit]["departing"]
+                    | unit_data[unit]["vacant"]
+                    | unit_data[unit]["occupied"]
+                    )
+                ]
         if not candidates:
             candidates = list(selected_dates)
         # Pick candidate with lowest load, tie-break by status priority
@@ -207,14 +235,6 @@ def schedule_tasks(result, start, end, subset=None, min_per_day=6, max_per_day=8
     load_str = {day.strftime("%Y-%m-%d"): count for day, count in load.items()}
 
     return assignments_per_day, load_str
-
-
-
-
-
-
-
-
 
 
 def assignments_dict_to_df(assignments_per_day):
